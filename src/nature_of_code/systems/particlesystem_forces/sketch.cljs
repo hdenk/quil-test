@@ -14,18 +14,17 @@
     (spec/check-config m))
   m)
 
-(def config (gen-config {
-  :background 255
-  :frame-rate 30
-  :gravity [0.0 0.1]
-  :lifespan 255
-  :lifespan-dec-rate 1.5
-  :circle-r 16
-  :square-l 16 
-  :particle-color 127
-  :particle-outline-thickness 2
-  :particle-shapes [:circle :rotating-square]
-  :check-spec true})) 
+(def config (gen-config {:background 255
+                         :frame-rate 30
+                         :gravity [0.0 0.1]
+                         :lifespan 255
+                         :lifespan-dec-rate 1.5
+                         :circle-r 16
+                         :square-l 16
+                         :particle-color 127
+                         :particle-outline-thickness 2
+                         :particle-shapes [:circle :rotating-square]
+                         :check-spec true}))
 
 ;;
 ;; particle
@@ -36,7 +35,7 @@
     (spec/check-particle m))
   m)
 
-(defn apply-force-to-particle [{:keys [mass acceleration] :as particle} force] 
+(defn apply-force-to-particle [{:keys [mass acceleration] :as particle} force]
   (let [mf (mv/divide force (float mass))
         next-acceleration (mv/add acceleration mf)]
     (assoc particle :acceleration next-acceleration)))
@@ -49,11 +48,11 @@
     (assoc particle :location next-location :velocity next-velocity :acceleration next-acceleration :lifespan next-lifespan)))
 
 (defn next-particle [particle force]
-  (-> particle 
+  (-> particle
       (apply-force-to-particle force)
       (move-particle)))
 
-(defn is-expired-particle? [{:keys [lifespan] :as particle}] 
+(defn is-expired-particle? [{:keys [lifespan] :as particle}]
   (< lifespan 0))
 
 (defmulti draw-particle (fn [particle] (:shape particle)))
@@ -70,7 +69,7 @@
   (q/stroke-weight (config :particle-outline-thickness))
   (q/fill (config :particle-color) lifespan)
   (q/rect-mode :center)
-  (q/rect (first location) (second location) (config :square-l) (config :square-l)) 
+  (q/rect (first location) (second location) (config :square-l) (config :square-l))
   (q/rect-mode :corner) ; TODO? get current rect-mode from graphic object
   particle)
 
@@ -83,7 +82,7 @@
   (let [theta (q/map-range (first location) 0 (q/width) 0 (* Math/PI 2))]
     (q/rotate theta))
   (q/rect-mode :center)
-  (q/rect 0 0 (config :square-l) (config :square-l)) 
+  (q/rect 0 0 (config :square-l) (config :square-l))
   (q/rect-mode :corner) ; TODO? get current rect-mode from graphic object
   (q/pop-matrix)
   particle)
@@ -106,25 +105,24 @@
   (rand-nth (config :particle-shapes)))
 
 (defn add-new-particle [{:keys [origin particles] :as particle-system}]
-  (let [next-particles (conj particles 
-                             (gen-particle {
-                               :id (count particles) 
-                               :shape (random-shape)
-                               :mass 1.0 
-                               :location origin 
-                               :velocity [(q/random -2.0 2.0) (q/random -2.0 0.0)] 
-                               :acceleration [0 0]
-                               :lifespan (config :lifespan)}))]
+  (let [next-particles (conj particles
+                             (gen-particle {:id (count particles)
+                                            :shape (random-shape)
+                                            :mass 1.0
+                                            :location origin
+                                            :velocity [(q/random -2.0 2.0) (q/random -2.0 0.0)]
+                                            :acceleration [0 0]
+                                            :lifespan (config :lifespan)}))]
     (assoc particle-system :particles next-particles)))
 
 (defn remove-expired-particles [{:keys [particles] :as particle-system}]
   (let [next-particles (remove is-expired-particle? particles)]
-    (assoc particle-system :particles next-particles)))  
+    (assoc particle-system :particles next-particles)))
 
 (defn next-particle-system [particle-system]
-  (-> particle-system 
-      (next-particles) 
-      (add-new-particle) 
+  (-> particle-system
+      (next-particles)
+      (add-new-particle)
       (remove-expired-particles)))
 
 (defn draw-particle-system [{:keys [particles] :as particle-system}]
@@ -140,7 +138,7 @@
 (defn setup-sketch []
   (js/console.log (str "setup-sketch " (q/width) " " (q/height)))
 
-  (swap! particle-system (fn [_] (gen-particle-system {:origin [(/ (q/width) 2) (- (q/height) (* (q/height) 0.75))] 
+  (swap! particle-system (fn [_] (gen-particle-system {:origin [(/ (q/width) 2) (- (q/height) (* (q/height) 0.75))]
                                                        :gravity (config :gravity)
                                                        :particles []})))
 
@@ -151,11 +149,11 @@
 (defn draw-sketch []
   ; draw Background
   (q/no-stroke)
-  (q/fill 255) 
+  (q/fill 255)
   (q/rect 0 0 (q/width) (q/height))
 
   ; draw particle-system
   (draw-particle-system @particle-system)
 
   ; update ParticleSystem to next-state
-  (swap! particle-system next-particle-system)) 
+  (swap! particle-system next-particle-system))

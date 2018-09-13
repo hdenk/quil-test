@@ -2,7 +2,7 @@
   "A minimalistic Implementation of basic Vector-Math
   Based on the Nature of Code by Daniel Shiffman http://natureofcode.com")
   ;(:require [clojure.math.numeric-tower :as math])
-  
+
 
 (defn add [& vs]
   "vector addition"
@@ -53,7 +53,7 @@
 ; two vectors A and B) 
 (defn dot-product [v1 v2]
   "dot-product, returns a skalar"
-  (+ (* (first v1) (first v2)) (* (second v1) (second v2)))) 
+  (+ (* (first v1) (first v2)) (* (second v1) (second v2))))
 
 (defn angle-between [v1 v2]
   "returns the angle between two vectors in radians"

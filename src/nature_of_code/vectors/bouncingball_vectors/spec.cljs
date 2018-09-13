@@ -21,9 +21,9 @@
 (s/def ::config (s/keys :req-un [::size ::background ::frame-rate ::ball-x ::ball-y ::ball-r ::speed-x ::speed-y ::damping-factor ::check-spec]))
 
 (defn check-config [config]
-    (when-not (s/valid? ::config config)
-          (throw (js/Error. (s/explain-str ::config config))))
-    config)
+  (when-not (s/valid? ::config config)
+    (throw (js/Error. (s/explain-str ::config config))))
+  config)
 
 ;;
 ;; ball
@@ -35,6 +35,6 @@
 (s/def ::ball (s/keys :req-un [::location ::velocity]))
 
 (defn check-ball [ball]
-    (when-not (s/valid? ::ball ball)
-          (throw (js/Error. (s/explain-str ::ball ball))))
-    ball)
+  (when-not (s/valid? ::ball ball)
+    (throw (js/Error. (s/explain-str ::ball ball))))
+  ball)

@@ -22,9 +22,9 @@
 (s/def ::config (s/keys :req-un [::background ::frame-rate ::gravity ::lifespan ::lifespan-dec-rate ::circle-r ::square-l ::particle-color ::particle-outline-thickness ::particle-shapes ::check-spec]))
 
 (defn check-config [config]
-    (when-not (s/valid? ::config config)
-          (throw (js/Error. (s/explain-str ::config config))))
-    config)
+  (when-not (s/valid? ::config config)
+    (throw (js/Error. (s/explain-str ::config config))))
+  config)
 
 ;;
 ;; particle

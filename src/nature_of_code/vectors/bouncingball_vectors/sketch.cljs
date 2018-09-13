@@ -15,17 +15,16 @@
     (spec/check-config m))
   m)
 
-(def config (gen-config {
-  :size [200 200]
-  :background 255
-  :frame-rate 30
-  :ball-x 100
-  :ball-y 100
-  :ball-r 16
-  :speed-x 2.5
-  :speed-y 5
-  :damping-factor -0.9
-  :check-spec true}))
+(def config (gen-config {:size [200 200]
+                         :background 255
+                         :frame-rate 30
+                         :ball-x 100
+                         :ball-y 100
+                         :ball-r 16
+                         :speed-x 2.5
+                         :speed-y 5
+                         :damping-factor -0.9
+                         :check-spec true}))
 
 ;;
 ;; ball
@@ -41,17 +40,17 @@
         location-y (second location)
         next-velocity (-> velocity
                           (#(let [velocity-x (first %)]
-                             (if (or
+                              (if (or
                                    (and (> location-x (q/width)) (> velocity-x 0))
                                    (and (< location-x 0) (< velocity-x 0)))
-                               (assoc velocity 0 (* velocity-x (config :damping-factor)))
-                               %)))
+                                (assoc velocity 0 (* velocity-x (config :damping-factor)))
+                                %)))
                           (#(let [velocity-y (second %)]
-                             (if (or
+                              (if (or
                                    (and (> location-y (q/height)) (> velocity-y 0))
                                    (and (< location-y 0) (< velocity-y 0)))
-                               (assoc velocity 1 (* velocity-y (config :damping-factor)))
-                               %))))]
+                                (assoc velocity 1 (* velocity-y (config :damping-factor)))
+                                %))))]
     (assoc ball :velocity next-velocity)))
 
 (defn move [{:keys [location velocity] :as ball}]
@@ -65,10 +64,10 @@
 (def ball
   (let [location [(config :ball-x) (config :ball-y)]
         velocity [(config :speed-x) (config :speed-y)]]
-    (atom (gen-ball { :location location :velocity velocity }))))
+    (atom (gen-ball {:location location :velocity velocity}))))
 
 (defn setup-sketch []
-  (js/console.log "setup-sketch") 
+  (js/console.log "setup-sketch")
   (q/frame-rate (config :frame-rate))
   (q/background (config :background))
   (q/smooth))
@@ -82,7 +81,7 @@
   (let [next-ball (-> @ball
                       (check-edges)
                       (move))]
-    (swap! ball (fn [b n] n) next-ball))      
+    (swap! ball (fn [b n] n) next-ball))
 
   ; Display circle at ball location
   (q/stroke 0)

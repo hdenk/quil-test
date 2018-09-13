@@ -1,4 +1,4 @@
-(ns nature-of-code.forces.fluidresistance.core
+(ns nature-of-code.forces.fluidresistance.sketch
   "Demonstration of multiple force acting on bodies (Mover class)
   Bodies experience gravity continuously
   Bodies experience fluid resistance when in water
@@ -35,8 +35,8 @@
   [{:keys [x y width height]} {:keys [location]}]
   (let [[mover-x mover-y] location]
     (if (and
-          (>= mover-x x) (<= mover-x (+ x width))
-          (>= mover-y y) (<= mover-y (+ y height)))
+         (>= mover-x x) (<= mover-x (+ x width))
+         (>= mover-y y) (<= mover-y (+ y height)))
       true
       false)))
 
@@ -60,9 +60,9 @@
 
 (defn make-fluid []
   (map->Fluid
-    {:id "fluid1"
-     :x 0 :y (* (params :size-y) 0.75) :width (params :size-x) :height (params :size-y)
-     :color (params :fluid-color) :drag-coefficient (params :drag-coefficient)}))
+   {:id "fluid1"
+    :x 0 :y (* (params :size-y) 0.75) :width (params :size-x) :height (params :size-y)
+    :color (params :fluid-color) :drag-coefficient (params :drag-coefficient)}))
 
 ;;;
 ;;; Mover
@@ -119,15 +119,15 @@
 
 (defn make-movers []
   (map
-    (fn [id]
-      (map->Mover
-        {:id (str "mover" id)
-         :mass (inc (rand-int (params :mass-classes)))
-         :location [(rand-int (params :size-x)) (/ (rand-int (params :size-y)) 2)]
-         :velocity [(params :initial-speed-x) (params :initial-speed-y)]
-         :acceleration [(params :initial-acceleration-x) (params :initial-acceleration-y)]
-         :color (params :mover-color)}))
-    (range (params :mover-count))))
+   (fn [id]
+     (map->Mover
+      {:id (str "mover" id)
+       :mass (inc (rand-int (params :mass-classes)))
+       :location [(rand-int (params :size-x)) (/ (rand-int (params :size-y)) 2)]
+       :velocity [(params :initial-speed-x) (params :initial-speed-y)]
+       :acceleration [(params :initial-acceleration-x) (params :initial-acceleration-y)]
+       :color (params :mover-color)}))
+   (range (params :mover-count))))
 
 ;;;
 ;;; Main
@@ -135,15 +135,15 @@
 
 (def sketch-model
   (atom
-    { :fluid nil
-     :movers nil}))
+   {:fluid nil
+    :movers nil}))
 
 (defn init-sketch-model [m-atom]
   (swap!
-    m-atom
-    (fn [m]
-      (-> (assoc-in m [:fluid] (make-fluid))
-          (assoc-in [:movers] (make-movers))))))
+   m-atom
+   (fn [m]
+     (-> (assoc-in m [:fluid] (make-fluid))
+         (assoc-in [:movers] (make-movers))))))
 
 (defn update-movers [fluid movers]
   (map #(update-mover % fluid) movers))
@@ -169,27 +169,16 @@
 
   ; update sketch-model to next state
   (swap!
-    sketch-model
-    #(update-in
-       %
-       [:movers]
-       (partial update-movers (@sketch-model :fluid)))))
+   sketch-model
+   #(update-in
+     %
+     [:movers]
+     (partial update-movers (@sketch-model :fluid)))))
 
 (defn mouse-pressed []
   (swap!
-    sketch-model
-    #(update-in
-       %
-       [:movers]
-       (constantly (make-movers)))))
-
-; This sketch uses functional-mode middleware.
-; Check quil wiki for more info about middlewares and particularly
-; fun-mode.
-(qc/defsketch fluidresistance
-  :host "host"
-  :size [(params :size-x) (params :size-y)]
-  :setup setup-sketch
-  :draw draw-sketch
-  :mouse-pressed mouse-pressed
-  :middleware [m/fun-mode])
+   sketch-model
+   #(update-in
+     %
+     [:movers]
+     (constantly (make-movers)))))
