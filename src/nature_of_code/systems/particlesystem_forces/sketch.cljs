@@ -15,7 +15,6 @@
   m)
 
 (def config (gen-config {
-  :size [600 800]
   :background 255
   :frame-rate 30
   :gravity [0.0 0.1]
@@ -27,12 +26,6 @@
   :particle-outline-thickness 2
   :particle-shapes [:circle :rotating-square]
   :check-spec true})) 
-
-(defmacro SIZE-X []
-  (first (config :size)))
-
-(defmacro SIZE-Y []
-  (second (config :size)))
 
 ;;
 ;; particle
@@ -142,13 +135,15 @@
 ;; Sketch
 ;; 
 
-(def particle-system (atom (gen-particle-system {
-                             :origin [(/ (SIZE-X) 2) (- (SIZE-Y) (* (SIZE-Y) 0.75))] 
-                             :gravity (config :gravity)
-                             :particles []})))
+(def particle-system (atom nil))
 
 (defn setup-sketch []
-  (js/console.log "setup-sketch")
+  (js/console.log (str "setup-sketch " (q/width) " " (q/height)))
+
+  (swap! particle-system (fn [_] (gen-particle-system {:origin [(/ (q/width) 2) (- (q/height) (* (q/height) 0.75))] 
+                                                       :gravity (config :gravity)
+                                                       :particles []})))
+
   (q/frame-rate (config :frame-rate))
   (q/smooth)
   (q/rect-mode :corner))
@@ -164,14 +159,3 @@
 
   ; update ParticleSystem to next-state
   (swap! particle-system next-particle-system)) 
-
-; This sketch uses functional-mode middleware.
-; Check quil wiki for more info about middlewares and particularly
-; fun-mode.
-(q/defsketch sketch 
-  :host "sketch"
-  :size (config :size)
-  :setup setup-sketch
-  :draw draw-sketch
-  :middleware [m/fun-mode])
-

@@ -7,7 +7,6 @@
 ;; config
 ;;
 
-(s/def ::size (s/tuple int? int?))
 (s/def ::background int?)
 (s/def ::frame-rate int?)
 (s/def ::gravity ::2d-vector)
@@ -20,7 +19,7 @@
 (s/def ::particle-shapes (s/* keyword?))
 (s/def ::check-spec boolean?)
 
-(s/def ::config (s/keys :req-un [::size ::background ::frame-rate ::gravity ::lifespan ::lifespan-dec-rate ::circle-r ::square-l ::particle-color ::particle-outline-thickness ::particle-shapes ::check-spec]))
+(s/def ::config (s/keys :req-un [::background ::frame-rate ::gravity ::lifespan ::lifespan-dec-rate ::circle-r ::square-l ::particle-color ::particle-outline-thickness ::particle-shapes ::check-spec]))
 
 (defn check-config [config]
     (when-not (s/valid? ::config config)
