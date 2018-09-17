@@ -7,12 +7,10 @@
             [quil.middleware :as m]
             [nature-of-code.math.vector :as mv]))
 
-(def params
-  {:size-x 600
-   :size-y 400
-   :background 255
+(def config
+  {:background 255
    :frame-rate 30
-   :mover-count 12
+   :mover-count 5
    :mass-classes 3
    :r-factor 16
    :re-bouncing-factor -0.6
@@ -28,11 +26,14 @@
 ;;; Fluid
 ;;;
 
-(defrecord Fluid [id x y width height color drag-coefficient])
+(defn gen-fluid []
+  {:id "fluid1"
+   :x 0 :y (* (qc/height) 0.75) :width (qc/width) :height (qc/height)
+   :color (config :fluid-color) :drag-coefficient (config :drag-coefficient)})
 
 (defn contains-mover?
   "takes a fluid and a mover and returns true, if the mover is inside the fluid"
-  [{:keys [x y width height]} {:keys [location]}]
+  [{:keys [x y width height] :as fluid} {:keys [location] :as mover}]
   (let [[mover-x mover-y] location]
     (if (and
          (>= mover-x x) (<= mover-x (+ x width))
@@ -58,17 +59,20 @@
   (qc/rect x y width height)
   fluid)
 
-(defn make-fluid []
-  (map->Fluid
-   {:id "fluid1"
-    :x 0 :y (* (params :size-y) 0.75) :width (params :size-x) :height (params :size-y)
-    :color (params :fluid-color) :drag-coefficient (params :drag-coefficient)}))
-
 ;;;
 ;;; Mover
 ;;;
 
-(defrecord Mover [id mass location velocity acceleration color])
+(defn gen-movers []
+  (map
+   (fn [id]
+     {:id (str "mover" id)
+      :mass (inc (rand-int (config :mass-classes)))
+      :location [(rand-int (qc/width)) (/ (rand-int (qc/height)) 2)]
+      :velocity [(config :initial-speed-x) (config :initial-speed-y)]
+      :acceleration [(config :initial-acceleration-x) (config :initial-acceleration-y)]
+      :color (config :mover-color)})
+   (range (config :mover-count))))
 
 (defn apply-force [{:keys [acceleration mass] :as mover} force]
   "takes a mover and a force, applies the force and returns a mover with changed acceleration"
@@ -78,12 +82,12 @@
         next-acceleration (mv/add acceleration f)]
     (assoc mover :acceleration next-acceleration)))
 
-(defn apply-gravity [mover]
+(defn apply-gravity [{:keys [mass] :as mover}]
   ; Gravity is scaled by mass here!
-  (let [gravity [0 (* 0.1 (:mass mover))]]
+  (let [gravity [0 (* 0.1 mass)]]
     (apply-force mover gravity)))
 
-(defn update-motion-state
+(defn next-motion-state
   "takes a mover and force returns a mover with updated motion-state"
   [{:keys [location velocity acceleration] :as mover}]
   (let [next-location (mv/add location velocity)
@@ -93,19 +97,19 @@
 
 (defn check-edges [{:keys [location velocity mass] :as mover}]
   (let [[x y] location
-        rh (/ (* (params :r-factor) mass) 2)
+        rh (/ (* (config :r-factor) mass) 2)
         y-max (- (qc/height) rh)]
     (if (> y y-max)
-      (assoc mover :location [x y-max] :velocity (mv/multiply velocity (float (params :re-bouncing-factor))))
+      (assoc mover :location [x y-max] :velocity (mv/multiply velocity (float (config :re-bouncing-factor))))
       mover)))
 
-(defn update-mover
+(defn next-mover
   "takes a mover and force returns a mover with updated motion-state and applied force"
   [mover fluid]
   (let [drag-force (drag-force fluid mover)]
     (-> (apply-gravity mover)
         (apply-force drag-force)
-        (update-motion-state)
+        (next-motion-state)
         (check-edges))))
 
 (defn draw-mover
@@ -114,20 +118,8 @@
   (qc/stroke-weight 2)
   (qc/fill color, 200)
   (let [[x y] location]
-    (qc/ellipse x y (* mass (params :r-factor)) (* mass (params :r-factor))))
+    (qc/ellipse x y (* mass (config :r-factor)) (* mass (config :r-factor))))
   mover)
-
-(defn make-movers []
-  (map
-   (fn [id]
-     (map->Mover
-      {:id (str "mover" id)
-       :mass (inc (rand-int (params :mass-classes)))
-       :location [(rand-int (params :size-x)) (/ (rand-int (params :size-y)) 2)]
-       :velocity [(params :initial-speed-x) (params :initial-speed-y)]
-       :acceleration [(params :initial-acceleration-x) (params :initial-acceleration-y)]
-       :color (params :mover-color)}))
-   (range (params :mover-count))))
 
 ;;;
 ;;; Main
@@ -142,20 +134,20 @@
   (swap!
    m-atom
    (fn [m]
-     (-> (assoc-in m [:fluid] (make-fluid))
-         (assoc-in [:movers] (make-movers))))))
+     (-> (assoc-in m [:fluid] (gen-fluid))
+         (assoc-in [:movers] (gen-movers))))))
 
-(defn update-movers [fluid movers]
-  (map #(update-mover % fluid) movers))
+(defn next-movers [fluid movers]
+  (map #(next-mover % fluid) movers))
 
 (defn setup-sketch []
-  (qc/frame-rate (params :frame-rate))
+  (qc/frame-rate (config :frame-rate))
   (qc/smooth) ; anti aliasing on
   (init-sketch-model sketch-model))
 
 (defn draw-sketch []
   ; draw Background
-  (qc/background (params :background))
+  (qc/background (config :background))
 
   ; draw fluid
   (draw-fluid (@sketch-model :fluid))
@@ -173,7 +165,7 @@
    #(update-in
      %
      [:movers]
-     (partial update-movers (@sketch-model :fluid)))))
+     (partial next-movers (@sketch-model :fluid)))))
 
 (defn mouse-pressed []
   (swap!
@@ -181,4 +173,4 @@
    #(update-in
      %
      [:movers]
-     (constantly (make-movers)))))
+     (constantly (gen-movers)))))

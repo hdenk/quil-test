@@ -9,28 +9,28 @@
 ;; config
 ;;
 
-(defn gen-config [m]
+(defn check-config [m]
   (when (m :check-spec)
     (spec/check-config m))
   m)
 
-(def config (gen-config {:background 255
-                         :frame-rate 30
-                         :gravity [0.0 0.1]
-                         :lifespan 255
-                         :lifespan-dec-rate 1.5
-                         :circle-r 16
-                         :square-l 16
-                         :particle-color 127
-                         :particle-outline-thickness 2
-                         :particle-shapes [:circle :rotating-square]
-                         :check-spec true}))
+(def config (check-config {:background 255
+                           :frame-rate 30
+                           :gravity [0.0 0.1]
+                           :lifespan 255
+                           :lifespan-dec-rate 1.5
+                           :circle-r 16
+                           :square-l 16
+                           :particle-color 127
+                           :particle-outline-thickness 2
+                           :particle-shapes [:circle :rotating-square]
+                           :check-spec true}))
 
 ;;
 ;; particle
 ;;
 
-(defn gen-particle [m]
+(defn check-particle [m]
   (when (config :check-spec)
     (spec/check-particle m))
   m)
@@ -91,7 +91,7 @@
 ;; particle-system
 ;;
 
-(defn gen-particle-system [m]
+(defn check-particle-system [m]
   (when (config :check-spec)
     (spec/check-particle-system m))
   m)
@@ -106,13 +106,13 @@
 
 (defn add-new-particle [{:keys [origin particles] :as particle-system}]
   (let [next-particles (conj particles
-                             (gen-particle {:id (count particles)
-                                            :shape (random-shape)
-                                            :mass 1.0
-                                            :location origin
-                                            :velocity [(q/random -2.0 2.0) (q/random -2.0 0.0)]
-                                            :acceleration [0 0]
-                                            :lifespan (config :lifespan)}))]
+                             (check-particle {:id (count particles)
+                                              :shape (random-shape)
+                                              :mass 1.0
+                                              :location origin
+                                              :velocity [(q/random -2.0 2.0) (q/random -2.0 0.0)]
+                                              :acceleration [0 0]
+                                              :lifespan (config :lifespan)}))]
     (assoc particle-system :particles next-particles)))
 
 (defn remove-expired-particles [{:keys [particles] :as particle-system}]
@@ -138,9 +138,9 @@
 (defn setup-sketch []
   (js/console.log (str "setup-sketch " (q/width) " " (q/height)))
 
-  (swap! particle-system (fn [_] (gen-particle-system {:origin [(/ (q/width) 2) (- (q/height) (* (q/height) 0.75))]
-                                                       :gravity (config :gravity)
-                                                       :particles []})))
+  (swap! particle-system (fn [_] (check-particle-system {:origin [(/ (q/width) 2) (- (q/height) (* (q/height) 0.75))]
+                                                         :gravity (config :gravity)
+                                                         :particles []})))
 
   (q/frame-rate (config :frame-rate))
   (q/smooth)

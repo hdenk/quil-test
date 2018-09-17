@@ -10,27 +10,27 @@
 ;; config
 ;;
 
-(defn gen-config [m]
+(defn check-config [m]
   (when (m :check-spec)
     (spec/check-config m))
   m)
 
-(def config (gen-config {:size [200 200]
-                         :background 255
-                         :frame-rate 30
-                         :ball-x 100
-                         :ball-y 100
-                         :ball-r 16
-                         :speed-x 2.5
-                         :speed-y 5
-                         :damping-factor -0.9
-                         :check-spec true}))
+(def config (check-config {:size [200 200]
+                           :background 255
+                           :frame-rate 30
+                           :ball-x 100
+                           :ball-y 100
+                           :ball-r 16
+                           :speed-x 2.5
+                           :speed-y 5
+                           :damping-factor -0.9
+                           :check-spec true}))
 
 ;;
 ;; ball
 ;;
 
-(defn gen-ball [m]
+(defn check-ball [m]
   (when (config :check-spec)
     (spec/check-ball m))
   m)
@@ -64,10 +64,10 @@
 (def ball
   (let [location [(config :ball-x) (config :ball-y)]
         velocity [(config :speed-x) (config :speed-y)]]
-    (atom (gen-ball {:location location :velocity velocity}))))
+    (atom (check-ball {:location location :velocity velocity}))))
 
 (defn setup-sketch []
-  (js/console.log "setup-sketch")
+  (js/console.log (str "setup-sketch " (q/width) " " (q/height)))
   (q/frame-rate (config :frame-rate))
   (q/background (config :background))
   (q/smooth))
