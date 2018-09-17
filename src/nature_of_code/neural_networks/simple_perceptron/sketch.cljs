@@ -1,4 +1,4 @@
-(ns nature-of-code.neural-networks.simple-perceptron.core
+(ns nature-of-code.neural-networks.simple-perceptron.sketch
   "Neural Networking - A Simple Perceptron learns to classify 2D-Points
   according to a linear Function
   Based on the Nature of Code by Daniel Shiffman http://natureofcode.com"
@@ -7,10 +7,8 @@
             [goog.string :as gstring]
             [goog.string.format :as gformat]))
 
-(def params
-  {:size-x 800
-   :size-y 200
-   :background 255
+(def config
+  {:background 255
    :frame-rate 30
    :x-min -400
    :x-max 400
@@ -94,8 +92,8 @@
         (take training-record-count
               (repeatedly
                 #(let [
-                       x (random (params :x-min) (params :x-max))
-                       y (random (params :x-min) (params :x-max))
+                       x (random (config :x-min) (config :x-max))
+                       y (random (config :x-min) (config :x-max))
                        answer (if (< y (f x)) -1 1)]
                    (gen-training-record answer x y 1))))))
 
@@ -110,38 +108,38 @@
      :perceptron nil}))
 
 (defn init-sketch-model [m-atom]
-  (swap! m-atom #(assoc % :training-data (gen-training-data (params :training-record-count))))
-  (let [weights (random-weights (params :inputs-per-neuron))]
-    (swap! m-atom #(assoc % :perceptron (gen-perceptron :weights weights :learning-rate (params :learning-rate))))))
+  (swap! m-atom #(assoc % :training-data (gen-training-data (config :training-record-count))))
+  (let [weights (random-weights (config :inputs-per-neuron))]
+    (swap! m-atom #(assoc % :perceptron (gen-perceptron :weights weights :learning-rate (config :learning-rate))))))
 
 (defn setup-sketch []
-  (q/frame-rate (params :frame-rate))
+  (q/frame-rate (config :frame-rate))
   (q/smooth)
   (init-sketch-model sketch-model))
 
 (defn draw-sketch []
   ; draw Background
-  (q/background (params :background))
+  (q/background (config :background))
   (q/translate (/ (q/width) 2) (/ (q/height) 2))
 
   ; Draw the line
-  (q/stroke (params :n-line-color))
+  (q/stroke (config :n-line-color))
   (q/stroke-weight 4)
-  (let [x1 (params :x-min)
+  (let [x1 (config :x-min)
         y1 (f  x1)
-        x2 (params :x-max)
+        x2 (config :x-max)
         y2 (f x2)]
     (q/line x1 y1 x2 y2))
 
   ; Draw the line based on the current weights
   ; Formula is weights[0]*x + weights[1]*y + weights[2] = 0
-  (q/stroke (params :n-line-color))
+  (q/stroke (config :n-line-color))
   (q/stroke-weight 1)
   (let [perceptron (:perceptron @sketch-model)
         weights (:weights perceptron)
-        x1 (params :x-min)
+        x1 (config :x-min)
         y1 (- (- (nth weights 2)) (/ (* (nth weights 0) x1) (nth weights 1)))
-        x2 (params :x-max)
+        x2 (config :x-max)
         y2 (- (- (nth weights 2)) (/ (* (nth weights 0) x2) (nth weights 1)))]
     (q/line x1 y1 x2 y2))
 
@@ -169,7 +167,7 @@
             guess (feed-forward perceptron inputs)]
         (when (> guess 0)
           (q/no-fill))
-        (q/ellipse x y (params :point-r) (params :point-r)))
+        (q/ellipse x y (config :point-r) (config :point-r)))
       (when (< index training-index)
         (recur (inc index))))
 
@@ -181,13 +179,3 @@
           c (/ w2 w1)]
       ;(q/text (str training-index x c) 10 -18))))
       (q/text (str training-index (gstring/format "y = %.3f * x + %.3f" x c)) 10 -18))))
-
-; This sketch uses functional-mode middleware.
-; Check quil wiki for more info about middlewares and particularly
-; fun-mode.
-(q/defsketch simple-perceptron
-  :host "simple-perceptron"
-  :size [(params :size-x) (params :size-y)]
-  :setup setup-sketch
-  :draw draw-sketch
-  :middleware [m/fun-mode])
