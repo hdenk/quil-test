@@ -1,4 +1,4 @@
-(defproject circles-demo "0.1.0-SNAPSHOT"
+(defproject noc-clojurescript "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -28,7 +28,7 @@
   :cljsbuild {:builds {:app
                        {:source-paths ["src" "env/dev/cljs"]
                         :compiler
-                        {:main "circles-demo.dev"
+                        {:main "nature-of-code.dev"
                          :output-to "public/js/app.js"
                          :output-dir "public/js/out"
                          :asset-path   "js/out"
@@ -36,7 +36,7 @@
                          :optimizations :none
                          :pretty-print  true}
                         :figwheel
-                        {:on-jsload "circles-demo.core/mount-root"
+                        {:on-jsload "nature-of-code.core/mount-root"
                          :open-urls ["http://localhost:3449/index.html"]}}
                        :release
                        {:source-paths ["src" "env/prod/cljs"]
@@ -52,5 +52,5 @@
   :profiles {:dev {:source-paths ["src" "env/dev/clj"]
                    :dependencies [[binaryage/devtools "0.9.10"]
                                   [figwheel-sidecar "0.5.16"]
-                                  [nrepl "0.4.4"]
-                                  [cider/piggieback "0.3.8"]]}})
+                                  [cider/piggieback "0.3.8"]]
+                   :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}}})
