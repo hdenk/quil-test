@@ -3,9 +3,10 @@
     [quil.core :as q]
     [quil.middleware :as m]
     [reagent.core :as r]
-    [nature-of-code.vectors.bouncingball-vectors.sketch :as bouncingball-vectors.sketch]
-    [nature-of-code.forces.fluidresistance.sketch :as fluidresistance.sketch]
-    [nature-of-code.systems.particlesystem-forces.sketch :as particlesystem-forces.sketch]))
+    [nature-of-code.vectors.bouncingball-vectors.sketch :as bouncingball-vectors]
+    [nature-of-code.forces.fluidresistance.sketch :as fluidresistance]
+    [nature-of-code.neural-networks.simple-perceptron.sketch :as simple-perceptron]
+    [nature-of-code.systems.particlesystem-forces.sketch :as particlesystem-forces]))
 
 (defn canvas [params]
   (r/create-class
@@ -29,31 +30,40 @@
   [:div
     (r/with-let [running? (r/atom false)]
       [:div
+       [:h3 "Simple Perceptron"]
+        [:div>button
+        {:on-click #(swap! running? not)}
+        (if @running? "stop" "start")]
+       (when @running?
+         [canvas {:setup simple-perceptron/setup-sketch
+                  :draw simple-perceptron/draw-sketch}])])
+    #_(r/with-let [running? (r/atom false)]
+      [:div
        [:h3 "Bouncingball"]
         [:div>button
         {:on-click #(swap! running? not)}
         (if @running? "stop" "start")]
        (when @running?
-         [canvas {:setup bouncingball-vectors.sketch/setup-sketch
-                  :draw bouncingball-vectors.sketch/draw-sketch}])])
-    (r/with-let [running? (r/atom false)]
+         [canvas {:setup bouncingball-vectors/setup-sketch
+                  :draw bouncingball-vectors/draw-sketch}])])
+    #_(r/with-let [running? (r/atom false)]
       [:div
        [:h3 "Fluid-Resistance"]
        [:div>button
         {:on-click #(swap! running? not)}
         (if @running? "stop" "start")]
        (when @running?
-         [canvas {:setup fluidresistance.sketch/setup-sketch
-                  :draw fluidresistance.sketch/draw-sketch}])])
-    (r/with-let [running? (r/atom false)]
+         [canvas {:setup fluidresistance/setup-sketch
+                  :draw fluidresistance/draw-sketch}])])
+    #_(r/with-let [running? (r/atom false)]
       [:div
        [:h3 "Particle-System"]
        [:div>button
         {:on-click #(swap! running? not)}
         (if @running? "stop" "start")]
        (when @running?
-         [canvas {:setup particlesystem-forces.sketch/setup-sketch
-                  :draw particlesystem-forces.sketch/draw-sketch}])])])
+         [canvas {:setup particlesystem-forces/setup-sketch
+                  :draw particlesystem-forces/draw-sketch}])])])
 
 (defn mount-root []
   (r/render [home-page] (.getElementById js/document "app")))
