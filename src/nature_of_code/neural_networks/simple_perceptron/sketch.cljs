@@ -49,13 +49,16 @@
 (defn random-weights [weights-count]
   (into [] (take weights-count (repeatedly #(random -1 1)))))
 
-#_(defn activate [sum]
-    "simple activate-function"
-    (if (> sum  0)
-      1
-      -1))
+; Aktivierungsfunktion als Mutimethod -> Mehrere zur Auswahl
+(defmulti activate (fn [key sum] key))
 
-(defn activate [sum]
+(defmethod activate :simple [key sum]
+  "simple activate-function"  
+  (if (> sum  0)
+    1
+    -1))
+
+(defmethod activate :sigmoid [key sum]
   "sigmoid activate-function (logistic function)"
   (- 0.5 (sigmoid sum)))
 
@@ -63,7 +66,7 @@
   (let [sum (reduce
              +
              (map * inputs (:weights perceptron)))]
-    (activate sum)))
+    (activate :simple sum)))
 
 (defn train [perceptron inputs desired]
     ; guess the result (0, -2, or 2) and mult by learning-rate
@@ -177,4 +180,4 @@
           x (/ w0 w1)
           c (/ w2 w1)]
       ;;(q/text (str training-index x c) 10 -18))))
-      (q/text (str training-index (gstring/format "y = %.3f * x + %.3f" x c)) 10 -18))))
+      (q/text (str training-index (gstring/format " y = %.3f * x + %.3f" x c)) 10 -18))))
