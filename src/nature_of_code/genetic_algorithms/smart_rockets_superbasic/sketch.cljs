@@ -45,7 +45,7 @@
 ;;
 
 (defn random-gene [max-force]
-  (let [angle (rand processing.core.PConstants/TWO_PI)
+  (let [angle (rand (* Math/PI 2))
         rand-gene [(Math/cos angle) (Math/sin angle)]]
     (mv/multiply rand-gene (rand max-force))
     rand-gene))
@@ -143,7 +143,7 @@
 (defn gen-rocket
   [& {:keys [id mass location velocity acceleration r fitness dna gene-counter min-d hit-target] 
       :or {id "rx" mass 1.0 location [0 0] velocity [0 0] acceleration [0 0] 
-           r (params :rocket-r) fitness 0 dna [] gene-counter 0 min-d Integer/MAX_VALUE hit-target false}}] 
+           r (params :rocket-r) fitness 0 dna [] gene-counter 0 min-d js/Number.MAX_SAFE_INTEGER hit-target false}}] 
   (Rocket. id mass location velocity acceleration r fitness dna gene-counter min-d hit-target))
 
 ; TODO fitness-funktion zurück nach einfach, min-d entfernen ?
@@ -323,7 +323,7 @@
 (defn mouse-pressed [] 
   (swap! world assoc :target [(q/mouse-x) (q/mouse-y)]))
 
-(defn run-sketch []
+#_(defn run-sketch []
   (q/defsketch smart-rockets-superbasic 
     :title "Rockets adapt behavior to environment by applying genetic algorithm"
     :setup setup-sketch
