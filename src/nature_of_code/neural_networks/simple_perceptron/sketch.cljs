@@ -3,7 +3,6 @@
   according to a linear Function
   Based on the Nature of Code by Daniel Shiffman http://natureofcode.com"
   (:require [quil.core :as q :include-macros true]
-            [quil.middleware :as m]
             [goog.string :as gstring]
             [goog.string.format :as gformat]))
 
@@ -69,7 +68,7 @@
     (activate :simple sum)))
 
 (defn train [perceptron inputs desired]
-    ; guess the result (0, -2, or 2) and mult by learning-rate
+  ; guess the result (0, -2, or 2) and mult by learning-rate
   (let [guess (feed-forward perceptron inputs)
         error (- desired guess)
         next-weights (into []
@@ -113,7 +112,6 @@
 
 (defn setup-sketch []
   (js/console.log (str "setup-sketch " (q/width) " " (q/height)))
-  (js/console.log (str (sigmoid 100) "," (sigmoid 0) "," (sigmoid -100)))
   (q/frame-rate (config :frame-rate))
   (q/smooth)
   (init-sketch-model sketch-model))
@@ -123,7 +121,7 @@
   (q/background (config :background))
   (q/translate (/ (q/width) 2) (/ (q/height) 2))
 
-  ; Draw the line
+  ; Draw the line based on f(x)
   (q/stroke (config :n-line-color))
   (q/stroke-weight 4)
   (let [x1 (config :x-min)
