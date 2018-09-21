@@ -2,11 +2,11 @@
   "Rockets adapt behavior to environment by applying genetic algorithm
   Based on the Nature of Code by Daniel Shiffman http://natureofcode.com"
   (:require [quil.core :as q :include-macros true]
-            [nature-of-code.math.vector :as mv]))
+            [nature-of-code.math.vector :as mv]
+            [nature-of-code.genetic-algorithms.smart-rockets-superbasic.spec :as spec]))
 
-(def params ^{:doc "DataStructure representing Params to customize the app"} 
-  {:size [600 400]
-   :background 255
+(def config ^{:doc "DataStructure representing Params to customize the app"} 
+  {:background 255
    :frame-rate 30
    :lifetime 200
    :mutation-rate 0.01
@@ -16,12 +16,6 @@
    :rocket-r 4
    :rocket-color 127
    :thrusters-color 0}) 
-
-(defn size-x []
-  (first (params :size)))
-
-(defn size-y []
-  (second (params :size)))
 
 ;;
 ;; Abstractions
@@ -44,41 +38,37 @@
 ;; DNA
 ;;
 
+; TODO spec-check ?
+(defn check-dna [m]
+  m) 
+
 (defn random-gene [max-force]
   (let [angle (rand (* Math/PI 2))
         rand-gene [(Math/cos angle) (Math/sin angle)]]
     (mv/multiply rand-gene (rand max-force))
     rand-gene))
 
-(defrecord DNA [max-force genes]
-  Genetic
-  (crossover [dna partner-dna]
-    (let [crossover (rand-int (count (:genes dna)))
-          child-genes (into 
-                        [] 
-                        (concat 
-                          (first (split-at crossover (:genes dna))) 
-                          (second (split-at crossover (:genes partner-dna)))))]
-      (assoc dna :genes child-genes)))
-
-  (mutate [dna mutation-rate]
-    (let [mutated-genes (into []
-                              (map    
-                                #(if (< (rand) mutation-rate)
-                                   (random-gene (params :max-force))
-                                   %)
-                                (:genes dna)))]
-      (assoc dna :genes mutated-genes))))
-
-(defn gen-dna 
-  [& {:keys [maxforce genes] 
-      :or {maxforce 0.0 genes []}}] 
-  (DNA. maxforce genes)) 
-
 (defn random-dna [lifetime]
-  (let [force (rand (params :max-force))
+  (let [force (rand (config :max-force))
         genes (vec (repeatedly lifetime #(random-gene force)))]
-    (gen-dna :max-force (params :max-force) :genes genes)))
+    (check-dna {:max-force (config :max-force) 
+                :genes genes})))
+
+(defn crossover [dna partner-dna]
+  (let [split-idx (rand-int (count (:genes dna)))
+        child-genes (into [] (concat 
+                        (first (split-at split-idx (:genes dna))) 
+                        (second (split-at split-idx (:genes partner-dna)))))]
+    (assoc dna :genes child-genes)))
+
+(defn mutate [dna mutation-rate]
+  (let [mutated-genes (into []
+                            (map    
+                              #(if (< (rand) mutation-rate)
+                                 (random-gene (config :max-force))
+                                 %)
+                              (:genes dna)))]
+    (assoc dna :genes mutated-genes)))
 
 ;;
 ;; Rocket
@@ -127,12 +117,12 @@
           rh (/ r 2)
           r2 (* r 2)]
       ; Thrusters
-      (q/fill (params :thrusters-color))
+      (q/fill (config :thrusters-color))
       (q/rect (* rh -1) r2 rh r)
       (q/rect rh r2 rh r)
 
       ; Rocket body
-      (q/fill (params :rocket-color))
+      (q/fill (config :rocket-color))
       (q/begin-shape :triangles)
       (q/vertex 0 (* r2 -1))        
       (q/vertex (* r -1) r2)
@@ -143,14 +133,14 @@
 (defn gen-rocket
   [& {:keys [id mass location velocity acceleration r fitness dna gene-counter min-d hit-target] 
       :or {id "rx" mass 1.0 location [0 0] velocity [0 0] acceleration [0 0] 
-           r (params :rocket-r) fitness 0 dna [] gene-counter 0 min-d js/Number.MAX_SAFE_INTEGER hit-target false}}] 
+           r (config :rocket-r) fitness 0 dna [] gene-counter 0 min-d js/Number.MAX_SAFE_INTEGER hit-target false}}] 
   (Rocket. id mass location velocity acceleration r fitness dna gene-counter min-d hit-target))
 
 ; TODO fitness-funktion zurück nach einfach, min-d entfernen ?
 (defn fitness [rocket target]
   (if (:hit-target rocket)
     ; hit-target -> fitness-criterium = how-fast
-    (let [how-fast (Math/pow (- (params :lifetime) (:gene-index rocket)) 2)] 
+    (let [how-fast (Math/pow (- (config :lifetime) (:gene-index rocket)) 2)] 
       ;(dbg how-fast)
       (assoc rocket :fitness how-fast)) 
     ; didn't hit-target -> fitness-criterium = how-near
@@ -162,7 +152,7 @@
 
 (defn check-target [rocket target]
   (let [d (q/dist (first (:location rocket)) (second (:location rocket)) (first target) (second target))
-        next-hit-target (< d (params :target-r))
+        next-hit-target (< d (config :target-r))
         next-min-d (min (:min-d rocket d))]
     (assoc rocket :hit-target next-hit-target :min-d next-min-d)))
 
@@ -182,8 +172,8 @@
         (map
           #(gen-rocket
              :id (str "r" %)
-             :location [(/ (size-x) 2) (- (size-y) 20)]
-             :dna  (random-dna (params :lifetime)))
+             :location [(/ (q/width) 2) (- (q/height) 20)]
+             :dna  (random-dna (config :lifetime)))
           (range rocket-count))))
 
 (defn move-and-check-rockets [population target]
@@ -224,7 +214,7 @@
         dna2 (:dna rocket2)
         new-dna (crossover dna1 dna2)]
     (gen-rocket :id (str "r" rocket-index)
-                :location [(/ (size-x) 2) (- (size-y) 20)]
+                :location [(/ (q/width) 2) (- (q/height) 20)]
                 :dna new-dna)))
 
 (defn mutate-rocket [rocket mutation-rate]
@@ -275,14 +265,14 @@
 ;;
 
 (defn setup-sketch []
-  (q/frame-rate (params :frame-rate))
+  (q/frame-rate (config :frame-rate))
   (q/smooth)
 
   ; initialize world
-  (let [rockets (gen-random-rockets (params :rocket-count))
-        mutation-rate (params :mutation-rate)
+  (let [rockets (gen-random-rockets (config :rocket-count))
+        mutation-rate (config :mutation-rate)
         population (gen-population :mutation-rate mutation-rate :rockets rockets)
-        target [(/ (size-x) 2) (params :target-r)]]
+        target [(/ (q/width) 2) (config :target-r)]]
     (swap! world (constantly (gen-world :population population :target target :life-count 0)))))
 
 (defn draw-sketch []
@@ -297,13 +287,13 @@
         life-count (:life-count @world)]
     ; draw target
     (q/fill 0) 
-    (q/ellipse (first target) (second target) (params :target-r) (params :target-r))
+    (q/ellipse (first target) (second target) (config :target-r) (config :target-r))
 
     ; draw rockets 
     (draw-population (:population @world))
 
     ; state-progression 
-    (if (< life-count (params :lifetime))
+    (if (< life-count (config :lifetime))
       ; next step in current populations life
       (let [next-population (move-and-check-rockets population target)
             next-life-count (inc life-count)]
@@ -318,15 +308,7 @@
     ; Display some info
     (q/fill 0) 
     (q/text (str "Generation #: " (:generation-count population)) 10 18)
-    (q/text (str "Cycles left: " (- (params :lifetime) life-count)) 10 36))) 
+    (q/text (str "Cycles left: " (- (config :lifetime) life-count)) 10 36))) 
 
 (defn mouse-pressed [] 
   (swap! world assoc :target [(q/mouse-x) (q/mouse-y)]))
-
-#_(defn run-sketch []
-  (q/defsketch smart-rockets-superbasic 
-    :title "Rockets adapt behavior to environment by applying genetic algorithm"
-    :setup setup-sketch
-    :draw draw-sketch
-    :mouse-pressed mouse-pressed
-    :size (params :size)))
