@@ -6,6 +6,7 @@
     [nature-of-code.vectors.bouncingball-vectors.sketch :as bouncingball-vectors]
     [nature-of-code.forces.fluidresistance.sketch :as fluidresistance]
     [nature-of-code.neural-networks.simple-perceptron.sketch :as simple-perceptron]
+    [nature-of-code.genetic-algorithms.smart-rockets-superbasic.sketch :as smart-rockets-superbasic]
     [nature-of-code.systems.particlesystem-forces.sketch :as particlesystem-forces]))
 
 (defn canvas [params]
@@ -20,6 +21,7 @@
            :size [width height]
            :setup (params :setup) 
            :draw (params :draw)
+           :mouse-pressed (params :mouse-pressed)
            :middleware [m/fun-mode])))
      :render
      (fn []
@@ -29,6 +31,16 @@
 (defn home-page []
   [:div
     (r/with-let [running? (r/atom false)]
+      [:div
+       [:h3 "Smart Rockets"]
+        [:div>button
+        {:on-click #(swap! running? not)}
+        (if @running? "stop" "start")]
+       (when @running?
+         [canvas {:setup smart-rockets-superbasic/setup-sketch
+                  :draw smart-rockets-superbasic/draw-sketch
+                  :mouse-pressed smart-rockets-superbasic/mouse-pressed}])])
+    #_(r/with-let [running? (r/atom false)]
       [:div
        [:h3 "Simple Perceptron"]
         [:div>button

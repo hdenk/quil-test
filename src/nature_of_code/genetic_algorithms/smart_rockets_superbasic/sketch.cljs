@@ -31,26 +31,30 @@
 (defn random-dna
   "gen random dna (= lifetime * random-gene as vector)"
   [lifetime]
-  (let [force-limit (rand (config :max-force))
-        genes (vec (repeatedly lifetime #(random-gene force-limit)))]
-    {:force-limit force-limit :genes genes}))
+  (let [genes (vec (repeatedly 
+                     lifetime 
+                     #(random-gene (rand (config :max-force)))))]
+    {:mutation-count 0 :genes genes}))
 
 (defn crossover
   "split two dna-strands and concat halves to a third (child-)dna"
-  [dna partner-dna]
-  (let [split-idx (rand-int (count (:genes dna)))
+  ([dna partner-dna split-idx]
+  (let [
         child-genes (into [] (concat
                               (first (split-at split-idx (:genes dna)))
                               (second (split-at split-idx (:genes partner-dna)))))]
     (assoc dna :genes child-genes)))
+  ([dna partner-dna]
+    (crossover dna partner-dna (inc (rand-int (dec (count (:genes dna)))))))) ; [1..n-1]
 
 (defn mutate [dna mutation-rate]
   (let [mutated-genes (mapv
                        (fn [gene] (if (< (rand) mutation-rate)
                                     (random-gene (rand (config :max-force)))
                                     gene))
-                       (:genes dna))]
-    (assoc dna :genes mutated-genes)))
+                       (:genes dna))
+        next-mutation-count (inc (:mutation-count dna))]
+    (assoc dna :mutation-count next-mutation-count :genes mutated-genes)))
 
 ;;
 ;; Rocket
