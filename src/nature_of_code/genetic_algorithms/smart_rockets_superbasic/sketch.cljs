@@ -48,13 +48,18 @@
     (crossover dna partner-dna (inc (rand-int (dec (count (:genes dna)))))))) ; [1..n-1]
 
 (defn mutate [dna mutation-rate]
-  (let [mutated-genes (mapv
-                       (fn [gene] (if (< (rand) mutation-rate)
-                                    (random-gene (rand (config :max-force)))
-                                    gene))
-                       (:genes dna))
-        next-mutation-count (inc (:mutation-count dna))]
-    (assoc dna :mutation-count next-mutation-count :genes mutated-genes)))
+  (let [
+        [m-count next-genes] (reduce
+                               (fn [[m-count genes] gene] 
+                                 (if (< (rand) mutation-rate)
+                                   (vector (inc m-count)
+                                           (conj genes (random-gene (rand (config :max-force)))))
+                                   (vector m-count
+                                           (conj genes gene))))
+                               [0 []]
+                               (:genes dna))
+        next-mutation-count (+ (:mutation-count dna) m-count)]
+    (assoc dna :mutation-count next-mutation-count :genes next-genes)))
 
 ;;
 ;; Rocket
