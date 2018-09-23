@@ -48,8 +48,7 @@
     (crossover dna partner-dna (inc (rand-int (dec (count (:genes dna)))))))) ; [1..n-1]
 
 (defn mutate [dna mutation-rate]
-  (let [
-        [m-count next-genes] (reduce
+  (let [[m-count next-genes] (reduce
                                (fn [[m-count genes] gene] 
                                  (if (< (rand) mutation-rate)
                                    (vector (inc m-count)
@@ -72,28 +71,30 @@
   {:id id :mass mass :location location :velocity velocity :acceleration acceleration
    :r r :fitness fitness :dna dna :gene-index gene-index :min-d min-d :hit-target hit-target})
 
-(defn next-motion-state [rocket]
-  (let [next-location (mv/add (:location rocket) (:velocity rocket))
-        next-velocity (mv/add (:velocity rocket) (:acceleration rocket))
-        next-acceleration (mv/multiply (:acceleration rocket) (float 0))]
-    (assoc rocket :location next-location :velocity next-velocity :acceleration next-acceleration)))
+(defn get-force [rocket]
+  (let [forces (:genes (:dna rocket))
+        force (get forces (:gene-index rocket))]
+    force))
 
 (defn apply-force [rocket force]
   (let [mf (mv/divide force (float (:mass rocket)))
         next-acceleration (mv/add (:acceleration rocket) mf)]
-    (assoc rocket :acceleration next-acceleration)))
+    (assoc rocket :acceleration next-acceleration )))
+
+(defn next-motion-state [rocket]
+  (let [next-location (mv/add (:location rocket) (:velocity rocket))
+        next-velocity (mv/add (:velocity rocket) (:acceleration rocket))
+        next-acceleration (mv/multiply (:acceleration rocket) (float 0))
+        next-gene-index (mod (inc (:gene-index rocket)) (count (:genes (:dna rocket))))]
+    (assoc rocket :location next-location :velocity next-velocity :acceleration next-acceleration :gene-index next-gene-index)))
 
 (defn move [rocket]
+  (if (= (:id rocket) "r0")
+    (js/console.log (str "rocket: " rocket)))
   (if-not (:hit-target rocket)
-    (let [dna (:dna rocket)
-          genes (:genes dna)
-          gene-index (:gene-index rocket)
-          force (get genes gene-index)
-          next-gene-index (mod (inc gene-index) (count genes))]
-      (-> rocket
-          (apply-force force)
-          (next-motion-state)
-          (assoc :gene-index next-gene-index)))
+    (-> rocket
+        (apply-force (get-force rocket))
+        (next-motion-state))
     rocket))
 
 (defn draw-rocket [rocket]
