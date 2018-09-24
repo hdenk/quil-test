@@ -18,75 +18,68 @@
    :thrusters-color 0})
 
 ;;
-;; DNA
+;; DNA (genes = forces)
 ;;
 
-(defn random-gene
-  "gen random gene (=force)"
+(defn random-force
+  "gen random force"
   [force-limit]
   (let [angle (rand (* Math/PI 2))
         gene [(Math/cos angle) (Math/sin angle)]]
     (mv/multiply gene force-limit)))
 
-(defn random-dna
-  "gen random dna (= lifetime * random-gene as vector)"
+(defn random-forces
+  "lifetime * random-force as vector)"
   [lifetime]
-  (let [genes (vec (repeatedly 
-                     lifetime 
-                     #(random-gene (rand (config :max-force)))))]
-    {:mutation-count 0 :genes genes}))
+  (let [forces (vec (repeatedly
+                     lifetime
+                     #(random-force (rand (config :max-force)))))]
+    forces))
 
 (defn crossover
-  "split two dna-strands and concat halves to a third (child-)dna"
-  ([dna partner-dna split-idx]
-  (let [
-        child-genes (into [] (concat
-                              (first (split-at split-idx (:genes dna)))
-                              (second (split-at split-idx (:genes partner-dna)))))]
-    (assoc dna :genes child-genes)))
-  ([dna partner-dna]
-    (crossover dna partner-dna (inc (rand-int (dec (count (:genes dna)))))))) ; [1..n-1]
+  "split two vectors and concat halves to a resulting vector"
+  ([forces1 forces2 split-idx] ; to support testing
+   (let [resulting-forces (vec (concat ; @see https://stuartsierra.com/2015/04/26/clojure-donts-concat
+                                  (first (split-at split-idx forces1))
+                                  (second (split-at split-idx forces2))))]
+     resulting-forces))
+  ([forces1 forces2] ; called by app
+   (crossover forces1 forces2 (inc (rand-int (dec (count forces1))))))) ; [1..n-1]
 
-(defn mutate [dna mutation-rate]
-  (let [[m-count next-genes] (reduce
-                               (fn [[m-count genes] gene] 
-                                 (if (< (rand) mutation-rate)
-                                   (vector (inc m-count)
-                                           (conj genes (random-gene (rand (config :max-force)))))
-                                   (vector m-count
-                                           (conj genes gene))))
-                               [0 []]
-                               (:genes dna))
-        next-mutation-count (+ (:mutation-count dna) m-count)]
-    (assoc dna :mutation-count next-mutation-count :genes next-genes)))
+(defn mutate [forces mutation-rate]
+  (let [next-forces (map (fn [force] (if (< (rand) mutation-rate)
+                                       (random-force (rand (config :max-force)))
+                                       force))
+                         forces)]
+    next-forces))
 
 ;;
 ;; Rocket
 ;;
 
 (defn gen-rocket
-  [& {:keys [id mass location velocity acceleration r fitness dna gene-index min-d hit-target]
+  [& {:keys [id mass location velocity acceleration rocket-r fitness forces force-index min-d hit-target]
       :or {id "rx" mass 1.0 location [0 0] velocity [0 0] acceleration [0 0]
-           r (config :rocket-r) fitness 0 dna [] gene-index 0 min-d js/Number.MAX_SAFE_INTEGER hit-target false}}]
+           rocket-r (config :rocket-r) fitness 0 forces [] force-index 0 min-d js/Number.MAX_SAFE_INTEGER hit-target false}}]
   {:id id :mass mass :location location :velocity velocity :acceleration acceleration
-   :r r :fitness fitness :dna dna :gene-index gene-index :min-d min-d :hit-target hit-target})
+   :rocket-r rocket-r :fitness fitness :forces forces :force-index force-index :min-d min-d :hit-target hit-target})
 
 (defn get-force [rocket]
-  (let [forces (:genes (:dna rocket))
-        force (get forces (:gene-index rocket))]
+  (let [forces (:forces rocket)
+        force (get forces (:force-index rocket))]
     force))
 
 (defn apply-force [rocket force]
   (let [mf (mv/divide force (float (:mass rocket)))
         next-acceleration (mv/add (:acceleration rocket) mf)]
-    (assoc rocket :acceleration next-acceleration )))
+    (assoc rocket :acceleration next-acceleration)))
 
 (defn next-motion-state [rocket]
   (let [next-location (mv/add (:location rocket) (:velocity rocket))
         next-velocity (mv/add (:velocity rocket) (:acceleration rocket))
         next-acceleration (mv/multiply (:acceleration rocket) (float 0))
-        next-gene-index (mod (inc (:gene-index rocket)) (count (:genes (:dna rocket))))]
-    (assoc rocket :location next-location :velocity next-velocity :acceleration next-acceleration :gene-index next-gene-index)))
+        next-force-index (mod (inc (:force-index rocket)) (count (:forces rocket)))]
+    (assoc rocket :location next-location :velocity next-velocity :acceleration next-acceleration :force-index next-force-index)))
 
 (defn move [rocket]
   (if (= (:id rocket) "r0")
@@ -108,7 +101,7 @@
   (let [theta (+ (mv/heading-2d (:velocity rocket)) (/ Math/PI 2))]
     (q/rotate theta))
 
-  (let [r (:r rocket)
+  (let [r (:rocket-r rocket)
         rh (/ r 2)
         r2 (* r 2)]
     ; Thrusters
@@ -160,7 +153,7 @@
          #(gen-rocket
            :id (str "r" %)
            :location [(/ (q/width) 2) (- (q/height) 20)]
-           :dna  (random-dna (config :lifetime)))
+           :forces  (random-forces (config :lifetime)))
          (range rocket-count))))
 
 (defn move-and-check-rockets [population target]
