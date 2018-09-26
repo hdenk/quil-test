@@ -8,17 +8,17 @@
 (def config ^{:doc "DataStructure representing Params to customize the app"}
   {:background 255
    :frame-rate 30
-   :lifetime 200
+   :lifetime 200 
    :mutation-rate 0.01
    :max-force 1.0
    :target-r 24
-   :rocket-count 50
+   :rocket-count 30
    :rocket-r 4
    :rocket-color 127
    :thrusters-color 0})
 
 ;;
-;; DNA (genes = forces)
+;; forces (= genes)
 ;;
 
 (defn random-force
@@ -28,7 +28,7 @@
         gene [(Math/cos angle) (Math/sin angle)]]
     (mv/multiply gene force-limit)))
 
-(defn random-forces
+(defn gen-forces
   "lifetime * random-force as vector)"
   [lifetime]
   (let [forces (vec (repeatedly
@@ -40,8 +40,8 @@
   "split two vectors and concat halves to a resulting vector"
   ([forces1 forces2 split-idx] ; to support testing
    (let [resulting-forces (vec (concat ; @see https://stuartsierra.com/2015/04/26/clojure-donts-concat
-                                  (first (split-at split-idx forces1))
-                                  (second (split-at split-idx forces2))))]
+                                (first (split-at split-idx forces1))
+                                (second (split-at split-idx forces2))))]
      resulting-forces))
   ([forces1 forces2] ; called by app
    (crossover forces1 forces2 (inc (rand-int (dec (count forces1))))))) ; [1..n-1]
@@ -58,37 +58,36 @@
 ;;
 
 (defn gen-rocket
-  [& {:keys [id mass location velocity acceleration rocket-r fitness forces force-index min-d hit-target]
-      :or {id "rx" mass 1.0 location [0 0] velocity [0 0] acceleration [0 0]
-           rocket-r (config :rocket-r) fitness 0 forces [] force-index 0 min-d js/Number.MAX_SAFE_INTEGER hit-target false}}]
-  {:id id :mass mass :location location :velocity velocity :acceleration acceleration
-   :rocket-r rocket-r :fitness fitness :forces forces :force-index force-index :min-d min-d :hit-target hit-target})
+  [& {:keys [id mass location velocity forces force-index rocket-r fitness hit-target]
+      :or {id "rx" mass 1.0 location [0 0] velocity [0 0] forces [] force-index 0
+           rocket-r (config :rocket-r) fitness 0 hit-target false}}]
+  {:id id :mass mass :location location :velocity velocity :forces forces :force-index force-index
+   :rocket-r rocket-r :fitness fitness :hit-target hit-target})
 
-(defn get-force [rocket]
-  (let [forces (:forces rocket)
-        force (get forces (:force-index rocket))]
-    force))
-
-(defn apply-force [rocket force]
-  (let [mf (mv/divide force (float (:mass rocket)))
-        next-acceleration (mv/add (:acceleration rocket) mf)]
-    (assoc rocket :acceleration next-acceleration)))
+(defn gen-rockets [location rocket-count]
+  (mapv (fn [nr] (gen-rocket :id (str "r" nr)
+                             :location location
+                             :forces  (gen-forces (config :lifetime))))
+        (range rocket-count)))
 
 (defn next-motion-state [rocket]
-  (let [next-location (mv/add (:location rocket) (:velocity rocket))
-        next-velocity (mv/add (:velocity rocket) (:acceleration rocket))
-        next-acceleration (mv/multiply (:acceleration rocket) (float 0))
+  ;(js/console.log (str rocket))
+  (let [force (nth (:forces rocket) (:force-index rocket))
+        acceleration (mv/divide force (float (:mass rocket)))
+        next-location (mv/add (:location rocket) (:velocity rocket))
+        next-velocity (mv/add (:velocity rocket) acceleration)
         next-force-index (mod (inc (:force-index rocket)) (count (:forces rocket)))]
-    (assoc rocket :location next-location :velocity next-velocity :acceleration next-acceleration :force-index next-force-index)))
+    (assoc rocket :location next-location :velocity next-velocity :force-index next-force-index)))
 
-(defn move [rocket]
-  (if (= (:id rocket) "r0")
-    (js/console.log (str "rocket: " rocket)))
-  (if-not (:hit-target rocket)
-    (-> rocket
-        (apply-force (get-force rocket))
-        (next-motion-state))
-    rocket))
+(defn check-hit-target [rocket target]
+  (let [d (mv/distance (:location rocket) target)
+        next-hit-target (< d (config :target-r))]
+    (assoc rocket :hit-target next-hit-target)))
+
+(defn fitness [rocket]
+    ; hit-target -> fitness-criterium = how-fast
+    (let [next-fitness (Math/pow (- (config :lifetime) (:force-index rocket)) 2)]
+      (assoc rocket :fitness next-fitness)))
 
 (defn draw-rocket [rocket]
   (q/fill 200 100)
@@ -118,26 +117,6 @@
     (q/end-shape :close)) ; processing.core.PConstants/CLOSE
   (q/pop-matrix))
 
-; TODO fitness-funktion zurück nach einfach, min-d entfernen ?
-(defn fitness [rocket target]
-  (if (:hit-target rocket)
-    ; hit-target -> fitness-criterium = how-fast
-    (let [how-fast (Math/pow (- (config :lifetime) (:gene-index rocket)) 2)]
-      ;(dbg how-fast)
-      (assoc rocket :fitness how-fast))
-    ; didn't hit-target -> fitness-criterium = how-near
-    (let [d (q/dist (first (:location rocket)) (second (:location rocket)) (first target) (second target))
-          min-d (min (:min-d rocket) d)
-          how-near (Math/pow (/ 1 min-d) 2)]
-      ;(dbg how-near)
-      (assoc rocket :fitness how-near))))
-
-(defn check-target [rocket target]
-  (let [d (q/dist (first (:location rocket)) (second (:location rocket)) (first target) (second target))
-        next-hit-target (< d (config :target-r))
-        next-min-d (min (:min-d rocket d))]
-    (assoc rocket :hit-target next-hit-target :min-d next-min-d)))
-
 ;;
 ;; Population
 ;;
@@ -147,26 +126,16 @@
       :or {mutation-rate 0.0 rockets [] mating-pool [] generation-count 0}}]
   {:mutation-rate mutation-rate :rockets rockets :mating-pool mating-pool :generation-count generation-count})
 
-(defn gen-random-rockets [rocket-count]
-  (into []
-        (map
-         #(gen-rocket
-           :id (str "r" %)
-           :location [(/ (q/width) 2) (- (q/height) 20)]
-           :forces  (random-forces (config :lifetime)))
-         (range rocket-count))))
-
 (defn move-and-check-rockets [population target]
-  (let [next-rockets (into []
-                           (map
-                            #(-> % (move) (check-target target))
-                            (:rockets population)))]
+  (let [next-rockets (mapv
+                            #(-> % (next-motion-state) (check-hit-target target))
+                            (:rockets population))]
     (assoc population :rockets next-rockets)))
 
 (defn calc-rocket-fitness [population target]
   (let [next-rockets (into []
                            (map
-                            #(fitness % target)
+                            #(fitness %)
                             (:rockets population)))]
     (assoc population :rockets next-rockets)))
 
@@ -249,7 +218,8 @@
   (q/smooth)
 
   ; initialize world
-  (let [rockets (gen-random-rockets (config :rocket-count))
+  (let [initial-rocket-location (vector (/ (q/width) 2) (- (q/height) 20))
+        rockets (gen-rockets initial-rocket-location (config :rocket-count))
         mutation-rate (config :mutation-rate)
         population (gen-population :mutation-rate mutation-rate :rockets rockets)
         target [(/ (q/width) 2) (config :target-r)]]
