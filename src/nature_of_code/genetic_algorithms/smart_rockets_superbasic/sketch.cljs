@@ -8,11 +8,11 @@
 (def config ^{:doc "DataStructure representing Params to customize the app"}
   {:background 255
    :frame-rate 30
-   :lifetime 200 
-   :mutation-rate 0.01
+   :lifetime 200
+   :mutation-rate 0.05
    :max-force 1.0
    :target-r 24
-   :rocket-count 30
+   :rocket-count 50
    :rocket-r 4
    :rocket-color 127
    :thrusters-color 0})
@@ -38,13 +38,13 @@
 
 (defn crossover-forces
   "split two vectors and concat halves to a resulting vector"
-  ([forces1 forces2 split-idx] ; to support testing
+  ([forces-1 forces-2 split-idx] ; to support testing
    (let [resulting-forces (vec (concat ; @see https://stuartsierra.com/2015/04/26/clojure-donts-concat
-                                (first (split-at split-idx forces1))
-                                (second (split-at split-idx forces2))))]
+                                (first (split-at split-idx forces-1))
+                                (second (split-at split-idx forces-2))))]
      resulting-forces))
-  ([forces1 forces2] ; called by app
-   (crossover-forces forces1 forces2 (inc (rand-int (dec (count forces1))))))) ; [1..n-1]
+  ([forces-1 forces-2] ; called by app
+   (crossover-forces forces-1 forces-2 (inc (rand-int (dec (count forces-1))))))) ; [1..n-1]
 
 (defn mutate-forces [forces mutation-rate]
   (let [next-forces (map (fn [force] (if (< (rand) mutation-rate)
@@ -71,12 +71,11 @@
         (range rocket-count)))
 
 (defn move-rocket [rocket]
-  ;(js/console.log (str rocket))
   (let [force (nth (:forces rocket) (:force-index rocket))
         acceleration (mv/divide force (float (:mass rocket)))
         next-location (mv/add (:location rocket) (:velocity rocket))
         next-velocity (mv/add (:velocity rocket) acceleration)
-        next-force-index (mod (inc (:force-index rocket)) (count (:forces rocket)))]
+        next-force-index (inc (:force-index rocket))]
     (assoc rocket :location next-location :velocity next-velocity :force-index next-force-index)))
 
 (defn check-rocket-hit-target [rocket target]
@@ -84,24 +83,27 @@
         next-hit-target (< d (config :target-r))]
     (assoc rocket :hit-target next-hit-target)))
 
-(defn move-all-rockets [rockets target]
-  (let [next-rockets (mapv (fn [rocket] 
-                             (if-not (:hit-target rocket)
-                               (-> rocket 
-                                   (move-rocket) 
-                                   (check-rocket-hit-target target))
-                               rocket))
-                           rockets)]
+(defn move-and-check-rocket [rocket target]
+  (if-not (:hit-target rocket)
+    (-> rocket
+        (move-rocket)
+        (check-rocket-hit-target target))
+    rocket))
+
+(defn move-and-check-all-rockets [rockets target]
+  (let [next-rockets (mapv
+                      (fn [rocket] (move-and-check-rocket rocket target))
+                      rockets)]
     next-rockets))
 
 (defn calc-rocket-fitness [rocket]
-  (let [next-fitness (Math/pow (- (config :lifetime) (:force-index rocket)) 2)]
+  (let [next-fitness (Math/pow (max 1 (- (config :lifetime) (:force-index rocket))) 2)]
     (assoc rocket :fitness next-fitness)))
 
 (defn calc-all-rockets-fitness [rockets]
-  (let [next-rockets (mapv 
-                       calc-rocket-fitness 
-                       rockets)]
+  (let [next-rockets (mapv
+                      calc-rocket-fitness
+                      rockets)]
     next-rockets))
 
 (defn map-range [value from-min from-max to-min to-max]
@@ -115,20 +117,20 @@
 (defn gen-mating-pool [rockets]
   (let [max-fitness (:fitness (apply max-key :fitness rockets))]
     (vec (mapcat (fn [rocket]
-                     (reproduce-forces rocket max-fitness)) 
+                   (reproduce-forces rocket max-fitness))
                  rockets))))
 
 (defn reproduce-rockets [rockets]
   (let [mating-pool (gen-mating-pool rockets)
         pool-size (count mating-pool)]
-    (mapv (fn [id] 
-              (let [forces-1 (nth mating-pool (rand-int pool-size))
-                    forces-2 (nth mating-pool (rand-int pool-size))
-                    xforces (crossover-forces forces-1 forces-2)
-                    forces (mutate-forces xforces (config :mutation-rate))]
-                (gen-rocket :id (str "r" id) ; TODO gen-rocket ?
-                            :location [(/ (q/width) 2) (- (q/height) 20)]
-                            :forces forces)))
+    (mapv (fn [id]
+            (let [forces-1 (nth mating-pool (rand-int pool-size))
+                  forces-2 (nth mating-pool (rand-int pool-size))
+                  x-forces (crossover-forces forces-1 forces-2)
+                  forces (mutate-forces x-forces (config :mutation-rate))]
+              (gen-rocket :id (str "r" id) ; TODO gen-rocket ?
+                          :location [(/ (q/width) 2) (- (q/height) 20)]
+                          :forces forces)))
           (range (count rockets)))))
 
 (defn draw-rocket [rocket]
@@ -160,8 +162,8 @@
   (q/pop-matrix))
 
 (defn draw-target [target]
-    (q/fill 0)
-    (q/ellipse (first target) (second target) (config :target-r) (config :target-r)))
+  (q/fill 0)
+  (q/ellipse (first target) (second target) (config :target-r) (config :target-r)))
 
 ;;
 ;; Sketch
@@ -195,7 +197,7 @@
         target (:target @sketch-model)
         life-count (:life-count @sketch-model)
         generation-count (:generation-count @sketch-model)]
-    
+
     (draw-target target)
 
     ; draw rockets 
@@ -204,20 +206,20 @@
     ; state-progression 
     (if (< life-count (config :lifetime))
       ; either next motion-step
-      (let [next-rockets (move-all-rockets rockets target)
+      (let [next-rockets (move-and-check-all-rockets rockets target)
             next-life-count (inc life-count)]
         (swap! sketch-model (fn [m] (assoc m :rockets next-rockets :life-count next-life-count))))
       ; or next generation
-      (let [next-rockets (-> rockets 
-                                (calc-all-rockets-fitness)
-                                (reproduce-rockets))
+      (let [next-rockets (-> rockets
+                             (calc-all-rockets-fitness)
+                             (reproduce-rockets))
             next-generation-count (inc generation-count)]
-        (swap! sketch-model (fn [m] (assoc m :rockets next-rockets :life-count 0 :generation-count next-generation-count)))
+        (swap! sketch-model (fn [m] (assoc m :rockets next-rockets :life-count 0 :generation-count next-generation-count))))))
 
     ; Display some info
-    (q/fill 0)
-    (q/text (str "Generation #: " generation-count) 10 18)
-    (q/text (str "Cycles left: " (- (config :lifetime) life-count)) 10 36)))))
+  (q/fill 0)
+  (q/text (str "Generation #: " (:generation-count @sketch-model)) 10 18)
+  (q/text (str "Cycles left: " (- (config :lifetime) (:life-count @sketch-model))) 10 36))
 
 (defn mouse-pressed []
-  (swap! sketch-model (fn [m] assoc m :target [(q/mouse-x) (q/mouse-y)])))
+  (swap! sketch-model (fn [m] (assoc m :target (vector (q/mouse-x) (q/mouse-y))))))
