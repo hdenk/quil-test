@@ -9,7 +9,7 @@
   {:background 255
    :frame-rate 30
    :lifetime 200
-   :fitness-fn :steps+distance
+   :fitness-fn :steps-and-distance
    :mutation-rate 0.05
    :max-force 1.0
    :target-r 24
@@ -98,24 +98,21 @@
                       rockets)]
     next-rockets))
 
-(defn fitness-by-steps [rocket]
+(defmulti fitness (fn [key rocket & other] key))
+
+(defmethod fitness :steps [key rocket & _]
   "Fitness-Kriterium is steps to target. Rockets that dont hit target get a fitness of 1"
   (Math/pow (max 1 (- (config :lifetime) (:force-index rocket))) 2))
 
-(defn fitness-by-distance [rocket target]
+(defmethod fitness :distance [key rocket & [target]]
   "Fitness-Kriterium is distance to target, the nearer the fitter the rocket"
   (/ 1 (Math/pow (max 1 (mv/distance (:location rocket) (:location target))) 2)))
 
-(defn fitness-by-steps-and-distance [rocket target]
+(defmethod fitness :steps-and-distance [key rocket & [target]]
   "Fitness-Kriterium is steps to target plus distance to target"
-  (let [f-steps (fitness-by-steps rocket)
-        f-distance (fitness-by-distance rocket target)]
+  (let [f-steps (fitness :steps rocket)
+        f-distance (fitness :distance rocket target)]
     (+ f-steps f-distance)))
-
-(defn select-fitness-fn [key]
-  (key {:steps fitness-by-steps
-        :distance fitness-by-distance
-        :steps+distance fitness-by-steps-and-distance}))
 
 (defn update-population-fitness [rockets fitness-fn]
   (let [next-rockets (mapv
@@ -131,6 +128,7 @@
 (defn reproduce-forces [rocket max-fitness]
   (let [norm-fitness (map-range (:fitness rocket) 0 max-fitness 0 1)
         n (int (* norm-fitness 100))]
+    ;(js/console.log (str "fitness:" (:fitness rocket) ", max-fitness:" max-fitness ", n:" n ", norm:" norm-fitness))
     (repeat n (:forces rocket))))
 
 (defn gen-mating-pool [rockets]
@@ -240,8 +238,9 @@
       (let [next-rockets (move-and-check-population rockets target) ; either next motion-step 
             next-life-count (inc life-count)]
         (swap! sketch-model (fn [m] (assoc m :rockets next-rockets :life-count next-life-count))))
-      (let [next-rockets (-> rockets                                ; or next generation 
-                             (update-population-fitness (select-fitness-fn :steps+distance))
+      (let [fitness-fn (fn [rocket] (fitness (config :fitness-fn) rocket target))
+            next-rockets (-> rockets                                ; or next generation 
+                             (update-population-fitness fitness-fn)
                              (select-next-population (initial-rocket-location sketch-size)))
             next-generation-count (inc generation-count)]
         (swap! sketch-model (fn [m] (assoc m :rockets next-rockets :life-count 0 :generation-count next-generation-count))))))
