@@ -64,10 +64,9 @@
       (is (= (:hit-target result-3) false))
       (is (= (:hit-target result-4) true))
       (is (= (:hit-target result-5)) true)))
-  (testing "update-population-fitness"
+  (testing "update-population-fitness fitness-by-steps"
     (with-redefs [sketch/config {:lifetime 100}] ; TODO dep-to config is bad
-      (let [target {:location [100 100] :target-r 100}
-            rockets-1 [{:force-index 100}]
+      (let [rockets-1 [{:force-index 100}]
             result-1 (sketch/update-population-fitness rockets-1 sketch/fitness-by-steps)
             rockets-2 [{:force-index 90}]
             result-2 (sketch/update-population-fitness rockets-2 sketch/fitness-by-steps)
@@ -75,7 +74,24 @@
             result-3 (sketch/update-population-fitness rockets-3 sketch/fitness-by-steps)]
         (is (= (:fitness (first result-1)) 1)) ; min fitness = 1
         (is (= (:fitness (first result-2)) (* 10 10)))
-        (is (= (:fitness (first result-3)) (* 100 100)))))))
+        (is (= (:fitness (first result-3)) (* 100 100))))))
+  (testing "update-population-fitness fitness-by-distance"
+    (let [target {:location [100 100] :target-r 100}
+          rockets-1 [{:location [100 100]}]
+          result-1 (sketch/update-population-fitness rockets-1 (fn [rocket] (sketch/fitness-by-distance rocket target)))
+          rockets-2 [{:location [103 104]}]
+          result-2 (sketch/update-population-fitness rockets-2 (fn [rocket] (sketch/fitness-by-distance rocket target)))]
+      (is (= (:fitness (first result-1)) 1))
+      (is (= (:fitness (first result-2)) (/ 1 (* 5 5))))))
+  (testing "update-population-fitness fitness-by-steps-and-distance"
+    (with-redefs [sketch/config {:lifetime 100}] ; TODO dep-to config is bad
+      (let [target {:location [100 100] :target-r 100}
+            rockets-1 [{:location [100 100] :force-index 100}]
+            result-1 (sketch/update-population-fitness rockets-1 (fn [rocket] (sketch/fitness-by-steps-and-distance rocket target)))
+            rockets-2 [{:location [103 104] :force-index 90}]
+            result-2 (sketch/update-population-fitness rockets-2 (fn [rocket] (sketch/fitness-by-steps-and-distance rocket target)))]
+        (is (= (:fitness (first result-1)) (+ 1 1)))
+        (is (= (:fitness (first result-2)) (+ (* 10 10) (/ 1 (* 5 5)))))))))
 
 (deftest test-reproduction
   (testing "reproduce-forces"
@@ -98,9 +114,10 @@
       (is (not= (some #(= % (:forces rocket-1)) result-1) true))
       (is (= (some #(= % (:forces rocket-2)) result-1) true))
       (is (= (some #(= % (:forces rocket-3)) result-1) true))))
-  #_(testing "reproduce-rockets" ; call gen-rocket uses quil-fns width and height
+  (testing "select-next-population"
+    (with-redefs [sketch/config {:rocket-r 5 :mutation-rate 0.01}] ; TODO dep-to config is bad
       (let [rocket-1 {:forces [[0.01 0.03] [-0.01 -0.03]] :fitness 0}
             rocket-2 {:forces [[0.02 0.02] [-0.02 -0.02]] :fitness 10}
             rocket-3 {:forces [[0.03 0.01] [-0.03 -0.01]] :fitness 100}
-            result-1 (sketch/reproduce-rockets (vector rocket-1 rocket-2 rocket-3))]
-        (is (= (count result-1) 3)))))
+            result-1 (sketch/select-next-population (vector rocket-1 rocket-2 rocket-3) [100 100])]
+        (is (= (count result-1) 3))))))
