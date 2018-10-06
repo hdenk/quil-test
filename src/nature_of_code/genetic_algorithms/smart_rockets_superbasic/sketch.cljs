@@ -77,9 +77,9 @@
 
 (defn gen-rocket-population 
   "Gen a population of rockets"
-  [location forces rocket-count]
+  [start-location forces rocket-count]
   (mapv (fn [nr] (gen-rocket {:id (str "r" nr)
-                              :location location
+                              :location start-location
                               :forces (gen-forces (config :lifetime))}))
         (range rocket-count)))
 
@@ -132,7 +132,7 @@
                       rockets)]
     next-rockets))
 
-(defn map-range
+(defn- map-range
   "Transform a value from one range to another" 
   [value from-min from-max to-min to-max]
   (+ to-min (* (- to-max to-min) (/ (- value from-min) (- from-max from-min)))))
@@ -155,7 +155,7 @@
 
 (defn select-next-population 
   "Gen next population by 1. selection (random from mating-pool), 2. crossover, 3. mutation"
-  [rockets location]
+  [rockets start-location]
   (let [mating-pool (gen-mating-pool rockets)
         pool-size (count mating-pool)]
     (mapv (fn [nr]
@@ -164,9 +164,36 @@
                   x-forces (crossover-forces forces-1 forces-2)
                   forces (mutate-forces x-forces (config :mutation-rate))]
               (gen-rocket {:id (str "r" nr)
-                           :location location
+                           :location start-location
                            :forces forces})))
-          (range (count rockets)))))
+          (range (count rockets))))) ; TODO? sketch-model :rocket-count
+
+(defn next-motion-state 
+  "Progress to next motion-state (one step)"
+  [{:keys [rockets target life-count] :as sketch-model}]
+      (let [rockets (:rockets sketch-model)
+            target (:target sketch-model)
+            life-count (:life-count sketch-model)
+            next-rockets (move-and-check-population rockets target)  
+            next-life-count (inc life-count)]
+        (assoc sketch-model :rockets next-rockets :life-count next-life-count)))
+
+(defn next-generation 
+  "Progress to next generation"
+  [{:keys [start-location rockets target generation-count] :as sketch-model}]
+      (let [fitness-fn (fn [rocket] (fitness (config :fitness-fn) rocket target))
+            next-rockets (-> rockets                                 
+                              (update-population-fitness fitness-fn)
+                              (select-next-population start-location))
+            next-generation-count (inc generation-count)]
+        (assoc sketch-model :rockets next-rockets :life-count 0 :generation-count next-generation-count)))
+
+(defn update-state 
+  "Update sketch-model state"
+  [{:keys [life-count] :as sketch-model}]
+  (if (< life-count (config :lifetime)) 
+    (next-motion-state sketch-model)
+    (next-generation sketch-model)))
 
 (defn draw-rocket 
   "Draw one rocket"
@@ -216,26 +243,21 @@
   ^{:doc "Contains important data"}
   (atom nil))
 
-(defn initial-rocket-location [[size-x size-y :as sketch-size]]
-  (vector (/ size-x 2) (- size-y 20)))
-
-(defn initial-target-location [[size-x size-y :as sketch-size]]
-  (vector (/ size-x 2) (config :target-r)))
-
-(defn init-sketch-model
-  "Initialize sketch-model, called by quil's setup"
-  [m-atom]
-  (let [sketch-size (vector (q/width) (q/height))
-        rocket-location (initial-rocket-location sketch-size)
+(defn gen-sketch-model
+  "Initialize sketch-model, called by setup-sketch"
+  [m]
+  (let [[size-x size-y] (:sketch-size m)
+        start-location (vector (/ size-x 2) (- size-y 20))
         rocket-forces (gen-forces (config :lifetime))
-        rockets (gen-rocket-population rocket-location rocket-forces (config :rocket-count))
-        target-location (initial-target-location sketch-size)
+        rockets (gen-rocket-population start-location rocket-forces (config :rocket-count))
+        target-location (vector (/ size-x 2) (config :target-r))
         target {:location target-location :target-r (config :target-r)}]
-    (swap! m-atom (fn [_] {:sketch-size sketch-size
-                           :rockets rockets
-                           :target target
-                           :generation-count 0
-                           :life-count 0}))))
+    (merge {:start-location start-location
+            :rockets rockets
+            :target target
+            :generation-count 0
+            :life-count 0}
+           m)))
 
 (defn setup-sketch 
   "Setup sketch, Callback-Fn that gets called by quil, must be registered"
@@ -243,7 +265,7 @@
   (js/console.log (str "setup-sketch " (q/width) " " (q/height)))
   (q/frame-rate (config :frame-rate))
   (q/smooth)
-  (init-sketch-model sketch-model))
+  (swap! sketch-model (fn [_] (gen-sketch-model {:sketch-size (vector (q/width) (q/height))}))))
 
 (defn draw-sketch 
   "Draw sketch, Callback-Fn that gets called by quil, must be registered"
@@ -254,30 +276,15 @@
   (q/rect-mode :corner)
   (q/rect 0 0 (q/width) (q/height))
 
-  (let [sketch-size (:sketch-size @sketch-model)
-        rockets (:rockets @sketch-model)
-        target (:target @sketch-model)
-        life-count (:life-count @sketch-model)
-        generation-count (:generation-count @sketch-model)]
+  (draw-target (:target @sketch-model))
 
-    (draw-target target)
+  ; draw rockets 
+  (run! draw-rocket (:rockets @sketch-model)) ; @see https://clojuredocs.org/clojure.core/run! and also...
+                                              ; https://stuartsierra.com/2015/08/25/clojure-donts-lazy-effects        
+  ; state-progression 
+  (swap! sketch-model update-state)
 
-    ; draw rockets 
-    (run! draw-rocket rockets) ; @see https://clojuredocs.org/clojure.core/run! and also...
-                                ; https://stuartsierra.com/2015/08/25/clojure-donts-lazy-effects        
-    ; state-progression 
-    (if (< life-count (config :lifetime))
-      (let [next-rockets (move-and-check-population rockets target) ; either next motion-step 
-            next-life-count (inc life-count)]
-        (swap! sketch-model (fn [m] (assoc m :rockets next-rockets :life-count next-life-count))))
-      (let [fitness-fn (fn [rocket] (fitness (config :fitness-fn) rocket target))
-            next-rockets (-> rockets                                ; or next generation 
-                             (update-population-fitness fitness-fn)
-                             (select-next-population (initial-rocket-location sketch-size)))
-            next-generation-count (inc generation-count)]
-        (swap! sketch-model (fn [m] (assoc m :rockets next-rockets :life-count 0 :generation-count next-generation-count))))))
-
-    ; Display some info
+  ; Display some info
   (q/fill 0)
   (q/text (str "Generation #: " (:generation-count @sketch-model)) 10 18)
   (q/text (str "Cycles left: " (- (config :lifetime) (:life-count @sketch-model))) 10 36))
