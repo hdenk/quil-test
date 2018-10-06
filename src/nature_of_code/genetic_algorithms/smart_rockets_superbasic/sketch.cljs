@@ -155,7 +155,7 @@
 
 (defn select-next-population 
   "Gen next population by 1. selection (random from mating-pool), 2. crossover, 3. mutation"
-  [rockets start-location]
+  [rockets start-location rocket-count]
   (let [mating-pool (gen-mating-pool rockets)
         pool-size (count mating-pool)]
     (mapv (fn [nr]
@@ -166,7 +166,7 @@
               (gen-rocket {:id (str "r" nr)
                            :location start-location
                            :forces forces})))
-          (range (count rockets))))) ; TODO? sketch-model :rocket-count
+          (range rocket-count))))
 
 (defn next-motion-state 
   "Progress to next motion-state (one step)"
@@ -180,11 +180,11 @@
 
 (defn next-generation 
   "Progress to next generation"
-  [{:keys [start-location rockets target generation-count] :as sketch-model}]
+  [{:keys [start-location rocket-count rockets target generation-count] :as sketch-model}]
       (let [fitness-fn (fn [rocket] (fitness (config :fitness-fn) rocket target))
             next-rockets (-> rockets                                 
                               (update-population-fitness fitness-fn)
-                              (select-next-population start-location))
+                              (select-next-population start-location rocket-count))
             next-generation-count (inc generation-count)]
         (assoc sketch-model :rockets next-rockets :life-count 0 :generation-count next-generation-count)))
 
@@ -249,10 +249,12 @@
   (let [[size-x size-y] (:sketch-size m)
         start-location (vector (/ size-x 2) (- size-y 20))
         rocket-forces (gen-forces (config :lifetime))
-        rockets (gen-rocket-population start-location rocket-forces (config :rocket-count))
+        rocket-count (config :rocket-count)
+        rockets (gen-rocket-population start-location rocket-forces rocket-count)
         target-location (vector (/ size-x 2) (config :target-r))
         target {:location target-location :target-r (config :target-r)}]
     (merge {:start-location start-location
+            :rocket-count rocket-count
             :rockets rockets
             :target target
             :generation-count 0
@@ -279,8 +281,11 @@
   (draw-target (:target @sketch-model))
 
   ; draw rockets 
-  (run! draw-rocket (:rockets @sketch-model)) ; @see https://clojuredocs.org/clojure.core/run! and also...
-                                              ; https://stuartsierra.com/2015/08/25/clojure-donts-lazy-effects        
+  (loop [n (dec (:rocket-count @sketch-model))]
+      (when (>= n 0)
+        (draw-rocket (nth (:rockets @sketch-model) n))
+        (recur (dec n))))
+
   ; state-progression 
   (swap! sketch-model update-state)
 
